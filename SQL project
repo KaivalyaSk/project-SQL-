@@ -1,0 +1,449 @@
+create database project2kai;
+use project2;
+
+
+create table customer_prj2(customer_id int primary key, name varchar(100),email varchar(100),phone varchar(20),address varchar(255));
+
+insert into customer_prj2(customer_id,name,email,phone,address) values
+(1,'john smith','john.smith@example.com','123-456-7890','123 main st,anytown,usa'),
+(2,'alice brown','alice.brown@example.com','987-654-3210','456 oak st,anycity,usa'),
+(3,'bob johnson','bob.johnson@example.com','555-123-4567','789 elm st,anyville,usa'),
+(4,'emily davis','emily.davis@example.com','111-222-3333','456 maple st,anothercity,usa'),
+(5,'michael wilson','michael.wilson@example.com','444-555-6666','789 pine st,anothertown,usa');
+
+select * from customer_prj2;
+
+create table Books_prj2(book_id int primary key,title nvarchar(100),author varchar(225),genre varchar(50),price decimal(10,2),quantity_avaliable int, published_date date);
+
+insert into Books_prj2(book_id,title,author,genre,price,quantity_avaliable,published_date) values
+(1,'To kill a mockingbird','Harper Lee','Fiction','15.99',50,'1960-07-11'),
+(2,'1984','george orwell','Fiction','12.99',30,'1949-08-06'),
+(3,'the great gatsby','F.scott fitzgerlad','Fiction','10.99',40,'1925-10-04'),
+(4,'pride and prejudice','jane austen','Romance','11.99',25,'1813-01-28'),
+(5,'the catcher in the rye','j.d.salinger','Fiction','14.49',20,'1951-07-16'),
+(6,'animal farm','george orwell','Fiction','11.49',35,'1945-08-17'),
+(7,'lord of the flies','william golding','Fiction','13.99',15,'1954-09-17'),
+(8,'1984','george orwell','Fiction','12.99',30,'1949-06-08'),
+(9,'romeo and juilet','william shakespeare','Romance','9.99',40,'1597-05-30'),
+(10,'the hobbit','j.r.r.tolkien','Fantasy','16.99',60,'1937-09-21');
+
+select * from Books_prj2;
+
+create table order_prj2(order_id int primary key ,customer_id int,order_date date,total_amount decimal(10,2) FOREIGN KEY(customer_id) REFERENCES customer_prj2(customer_id));
+insert into order_prj2(order_id, customer_id, order_date, total_amount) VALUES
+(101, 1, '2024-02-15', 31.98),
+(102, 2, '2024-02-15', 23.98),
+(103, 3, '2024-02-15', 31.47),
+(104, 4, '2024-02-15', 40.97),
+(105, 5, '2024-02-15', 37.47),
+(106, 1, '2024-02-16', 50.97),
+(107, 2, '2024-02-16', 28.98),
+(108, 3, '2024-02-16', 32.47),
+(109, 4, '2024-02-16', 45.97),
+(110, 5, '2024-02-16', 49.47);
+
+select * from order_prj2;
+
+
+create table order_item(order_item_id int,order_id int,book_id int,quantity int,subtotal decimal(10,2));
+insert into order_item(order_item_id,order_id,book_id,quantity,subtotal) values
+(1,101,1,2,'31.98'),
+(2,102,2,1,'12.99'),
+(3,102,3,1,'10.99'),
+(4,103,4,1,'11.99'),
+(5,103,5,3,'29.97'),
+(6,104,6,2,'22.98'),
+(7,104,7,1,'13.99'),
+(8,105,8,2,'25.98'),
+(9,105,9,1,'9.99'),
+(10,106,10,3,'50.97');
+
+select * from order_item;
+
+
+--1) Retrieve the total number of books available in the inventory
+select count(*) as total_no_books FROM Books_prj2;
+
+--2) List all books priced between $10 and $20.
+select * from  Books_prj2 where price between 10 and 20 order by price asc;
+
+--3) Display the top 10 bestselling books based on the number of copies sold.
+
+select title, author, total_sold from (select b.title, b.author, sum(oi.quantity) as total_sold, row_number() over (order by sum(oi.quantity) desc)
+as part from Books_prj2 b join order_item oi on b.book_id = oi.book_id group by b.title, b.author) as TopSellingBooks where part<= 10;
+
+--4) Find the total revenue generated from book sales in the past month.
+
+select sum(o.total_amount) as total_revenue_book from order_prj2 o where order_date >= DATEADD(MONTH, -1, order_date);
+
+select sum(o.total_amount) as total_revenue_book from order_prj2 o where order_date >= DATEADD(MONTH, -1, GETDATE());
+
+--5) List all customers who have placed orders in the last three months.
+
+select distinct c.customer_id, c.name from customer_prj2 c join order_prj2 o on c.customer_id = o.customer_id
+where o.order_date >= DATEADD(MONTH, -3, GETDATE());
+
+select distinct c.customer_id, c.name from customer_prj2 c join order_prj2 o on c.customer_id = o.customer_id
+where o.order_date >= DATEADD(MONTH, -3, order_date);
+
+--6) Update the price of a specific book.
+
+update books_prj2 set price=14.99 where book_id=1;
+select * from Books_prj2;
+
+--7) Remove a book from the inventory.
+
+delete from Books_prj2 where book_id =8; 
+select * from Books_prj2;
+
+--8) Find the total number of orders placed by each customer
+
+select c.customer_id, c.name, count(o.order_id) as total_no_orders from customer_prj2 c
+join order_prj2 o on c.customer_id = o.customer_id group by c.customer_id, c.name;
+
+--9)Calculate the average order value. 
+
+select avg(total_amount) as average_order_value from order_prj2;
+
+
+--10)Display the details of orders containing more than five books.
+
+select  o.*, count(oi.book_id) as total_books_ordered from order_prj2 o join order_item oi on o.order_id = oi.order_id
+group by o.order_id, o.customer_id, o.order_date, o.total_amount having count(oi.book_id)>5 ; 
+
+--11)List all books ordered by a specific customer.
+
+select c.name as customer_name, b.title, b.author, oi.quantity from order_prj2 o join order_item oi on o.order_id = oi.order_id
+join Books_prj2 b on oi.book_id = b.book_id join customer_prj2 c on o.customer_id = c.customer_id where o.customer_id IN (2,3);
+
+
+--12)Identify customers who have not placed any orders.
+
+select c.customer_id, c.name, c.email, c.phone, c.address from customer_prj2 c join order_prj2 o on c.customer_id = o.customer_id
+where o.order_id is null;
+
+--13)Retrieve the latest order for each customer. 
+
+select o.order_id, o.customer_id, o.order_date, o.total_amount from order_prj2 o join (select customer_id, max(order_date)
+as latest_order_date from order_prj2 group by customer_id) latest_order on o.customer_id = latest_order.customer_id
+and o.order_date = latest_order.latest_order_date;
+
+
+--14)Calculate the total number of books sold in each genre.
+
+select b.genre, sum(oi.quantity) as total_sold
+from Books_prj2 b join order_item oi on b.book_id = oi.book_id group by b.genre order by total_sold desc;
+
+--15) Find the bestselling author based on total book sales.
+
+select b.author, sum(oi.quantity) as total_sales
+from Books_prj2 b join order_item oi on b.book_id = oi.book_id group by b.author order by total_sales desc;
+
+--16) 
+select title,author,published_date from books_prj2  order by published_date asc;
+
+--17) list of customers who reside in particular city
+
+select * from customer_prj2 where address like '%city%';
+
+
+--18)orders placed on a specified date
+
+select * from order_prj2 where order_date='2024-02-15';
+
+--19)find the average price of books in each genre
+
+select avg(price) , genre from books_prj2 group by genre;
+
+--20)identify duplicate entries in the books table
+
+select distinct title,genre,author from books_prj2 order by genre,title,author;
+
+
+select distinct title,genre,author,count(genre) as duplicate_column from books_prj2 group by genre,title,author having count(genre)>1;
+
+--21) retrive the most recent orders
+ select * from order_prj2 order by order_date desc;
+ 
+ --22) calculate the total number of books sold each month
+
+ select count(order_date) as total_sold ,order_date from order_prj2 group by order_date; 
+
+ --23)display the top 5 customers with highest total order amount
+
+ select c.customer_id ,c.name,sum(total_amount) as total_order_amount from customer_prj2 c join order_prj2 o on c.customer_id=o.customer_id group by c.customer_id, c.name 
+ order by total_order_amount desc;
+
+ --24) List all books with a quantity available less than 10.
+ select * from books_prj2 where quantity_avaliable<10;
+
+ --25)Find orders with a total amount exceeding $100
+
+ select * from order_prj2 where total_amount>$100;
+
+--26)Retrieve orders placed by a specific customer in the last week.
+ select * from order_prj2 where order_date<=DATEADD(WEEK,-1,order_date);
+
+ --27) display the distribution of orders by month
+
+ select month(order_date)as month_of_orders,order_id,customer_id from order_prj2 ;
+
+ --28)calculate the total revenue generated by each genre
+
+select genre ,sum(price) as total_revenue from books_prj2 group by genre;
+
+
+ --29)
+  select c. customer_id,c.name,sum(o.total_amount) as total_amount from customer_prj2 c join order_prj2 o on c.customer_id=o.customer_id
+group by c.customer_id,c.name having sum(o.total_amount)>500 order by total_amount ;
+
+--29)
+select * from order_prj2 where total_amount>$500;
+
+--30)Find the customer who placed the earliest order.
+
+select c.customer_id, c.name, min(o.order_date) AS earliest_order from customer_prj2 c join order_prj2 o on c.customer_id=o.customer_id
+group by c.customer_id,c.name order by earliest_order;
+
+--31)Display the average order value per month.
+
+select avg(total_amount) as average_order , month(order_date) as month_order from order_prj2 group by month(order_date);
+
+--32)Retrieve orders containing a specific book.
+
+select * from books_prj2  b join order_item o on b.book_id=o.book_id where b.title='1984';
+
+--33)Identify books that have never been ordered.
+
+select * from books_prj2 b where b. book_id not in (select distinct book_id from order_item);
+
+--34)Calculate the total number of orders placed each year.
+
+select count(*) as total_orders , year(order_date) as year from order_prj2 group by year(order_date);
+
+--35)Find the total revenue generated by each customer.
+
+select sum(total_amount) as total_revenue,customer_id from order_prj2 group by customer_id;
+
+--36)Display the distribution of book prices.
+  select price ,title,author from books_prj2 order by price asc;
+
+--37. List all orders containing books authored by a specific author.
+
+SELECT * FROM order_prj2 o JOIN customer_prj2 c ON o.customer_id = c.customer_id JOIN order_item oi ON o.order_id = oi.order_id
+JOIN Books_prj2 b ON oi.book_id = b.book_id WHERE b.author = 'George orwell';--sai bro
+
+select * from books_prj2  b join order_item o on b.book_id=o.book_id where b.author='George orwell';
+ 
+ --38)Retrieve orders placed within a specific time range.
+
+ select* from order_prj2 where order_date between '2024-02-14' and '2024-02-15';
+ 
+ --39)Calculate the percentage of orders containing multiple books.
+
+select(count(distinct case when book_id > 1 then book_id end) / count(distinct book_id)) * 100 as percentage_orders_multiple_books
+from order_item;
+
+--40)Find the customer who has placed the most orders
+
+select count(customer_id) as most_orders ,customer_id from order_prj2 group by customer_id order by most_orders desc;
+
+
+select customer_prj2.customer_id, customer_prj2.name, COUNT(order_item.order_item_id) AS num_books_purchased
+from customer_prj2
+inner join order_prj2 on customer_prj2.customer_id = order_prj2.customer_id
+inner join order_item on order_prj2.order_id = order_item.order_id
+group by customer_prj2.customer_id, customer_prj2.name
+order by num_books_purchased desc;
+
+
+ --41)Display the total number of books sold each day.
+  select day(order_date) as day,count(order_date) as books_sold from  order_prj2 group by order_date;
+  
+  --42)List all customers who have placed orders for books in a specific genre.
+ select c.name,c.customer_id from customer_prj2 c join order_prj2 o on c.customer_id=o.customer_id join order_item oi on o.order_id=oi.order_id 
+ join books_prj2 b on oi.book_id=b.book_id where genre='Fiction';
+   
+   --43)Retrieve orders with a total amount within a certain range.
+ select * from order_prj2 where total_amount<=35;
+
+ --44)Find the book with the highest price.
+
+ select title,max(price) from books_prj2; 
+
+  select* from books_prj2 where price=(select max(price) from books_prj2);
+
+ --45)Calculate the average quantity of books ordered per customer.
+ -- with customer_name
+ select c.name,avg(oi.quantity) as average_books from customer_prj2 c join order_prj2 o on c.customer_id=o.customer_id 
+ join order_item oi on o.order_id=oi.order_id
+ group by oi.quantity,c.name;
+
+ --with customer_id
+ select c.customer_id, c.name, AVG(oi.quantity) AS average_quantity
+FROM customer_prj2 c
+JOIN order_prj2 o ON c.customer_id = o.customer_id
+JOIN order_item oi ON o.order_id = oi.order_id
+GROUP BY c.customer_id, c.name;
+
+--46)Identify customers who have placed orders for the same book multiple times.
+select count(book_id) as multiple_timse_placed,book_id from order_item group by book_id;
+
+ select c.name ,count(oi.book_id) from customer_prj2 c join order_prj2 o on c.customer_id=o.customer_id join order_item oi on o.order_id=oi.order_id 
+ join books_prj2 b on oi.book_id=b.book_id group by oi.book_id,c.name;
+
+ SELECT book_id, COUNT(*) as order_count FROM order_item o join customer_prj2 c on o.customer_id=c.customer_id
+GROUP BY c.customer_id, book_id
+HAVING order_count > 1;
+
+--47)Retrieve orders containing books priced above the average price.
+select * from books_prj2 where price>(select avg(price) from books_prj2) order by price;
+
+select avg(price) from books_prj2; 
+
+--48)Display the total number of orders placed on weekdays vs. weekends.
+
+select sum(CASE WHEN DATEPART(WEEK,Order_date) IN (2,3,4,5,6) THEN 1 ELSE 0 END) AS WeekdayOrders,
+    SUM(CASE WHEN DATEPART(WEEK,Order_date) IN (1,7) THEN 1 ELSE 0 END) AS WeekendOrders
+FROM order_prj2;
+
+	--49)Find the customer who has ordered the most expensive book.
+
+select c.name,c.customer_id,b.price,b.title from customer_prj2 c join order_prj2 o on c.customer_id=o.customer_id 
+join order_item oi on o.order_id=oi.order_id join books_prj2 b on oi.book_id=b.book_id 
+where price=(select max(price) from books_prj2);
+
+--50)Retrieve orders containing books published in a specific year.
+
+SELECT books_prj2.published_date,count(*) as order_count FROM order_prj2 JOIN order_item ON order_prj2.order_id = order_item.order_id
+JOIN books_prj2 ON order_item.book_id = books_prj2.book_id group by published_date having YEAR(books_prj2.published_date) = 1813; 
+
+
+SELECT o.order_id, o.order_date, c.customer_id, c.name AS customer_name, b.book_id, b.title, b.published_date,
+       (SELECT COUNT(*) FROM order_item oi WHERE oi.book_id = b.book_id) as order_count
+FROM order_prj2 o
+JOIN order_item oi ON o.order_id = oi.order_id
+JOIN books_prj2 b ON oi.book_id = b.book_id
+JOIN customer_prj2 c ON o.customer_id = c.customer_id
+WHERE YEAR(b.published_date) = 1813;
+
+
+--51)Find the total number of unique customers who have placed orders.
+
+select distinct count(customer_id) from order_prj2 group by order_id;
+
+SELECT COUNT(DISTINCT customer_id)as total_unique_customers FROM order_prj2;
+
+--52)Retrieve orders with a total amount less than $50.
+
+select * from order_prj2 where total_amount<$50;
+
+--53)Display the top 10 customers who have purchased the most books.
+
+select c.customer_id,c.Name,
+    COUNT(oi.book_id) as TotalBooksPurchased from customer_prj2 c join order_prj2 o on c.customer_id = o.customer_id
+join order_item oi on o.order_id = oi.order_id group by c.customer_id , c.name;
+
+
+--54)List all books ordered in descending order of their price.
+
+select price from books_prj2 order by price desc;
+
+--55)Calculate the total revenue generated from book sales in the past year.
+
+select * from order_prj2 where order_date<=DATEADD(YEAR,-1,order_date);
+
+SELECT SUM(oi.quantity * b.price) as total_revenue FROM order_prj2 o JOIN order_item oi ON o.order_id = oi.order_id
+JOIN books_prj2 b ON oi.book_id = b.book_id WHERE o.order_date >= DATEADD(YEAR, -1, order_date);
+
+
+
+
+--56)Find the total number of orders placed on each day of the week.
+
+select DATEPART(DAY,order_date) as day_week,count(*) as total_orders ,order_date from order_prj2 group by order_date;
+
+--57)Retrieve orders containing books with titles containing a specific keyword.
+
+select * from books_prj2 where title like '%the%';
+
+--58)Identify customers who have placed orders in consecutive monthsse
+
+select count(*),order_date, dateadd(month,-1,order_date) , month(order_date) from order_prj2
+group by order_date;
+
+SELECT DISTINCT customer_prj2.customer_id FROM   order_prj2
+INNER JOIN order_prj2 o2  ON order_prj2.customer_id = order_prj2.customer_id 
+INNER JOIN customer_prj2  ON order_prj2.customer_id = customer_prj2.customer_id
+ORDER BY customer_prj2.customer_id;
+
+SELECT DISTINCT o1.customer_id, c.name AS customer_name
+FROM orders o1
+JOIN orders o2 ON o1.customer_id = o2.customer_id AND DATEDIFF(MONTH, o1.order_date, o2.order_date) = 1
+JOIN customers c ON o1.customer_id = c.customer_id;
+
+--59)Calculate the total profit margin (revenue minus cost) for each book.
+
+ SELECT b.book_id, b.title,b.price AS unit_price, SUM(oi.subtotal) AS revenue,
+    SUM(oi.subtotal) - (b.price * SUM(oi.quantity)) AS profit_margin
+FROM Books_prj2 b JOIN order_item oi ON b.book_id = oi.book_id GROUP BY
+    b.book_id, b.title, b.price;
+
+	--60)List all customers who have placed orders for books of multiple genres.
+
+SELECT c.customer_id,c.name AS customer_name FROM customer_prj2 c JOIN order_prj2 o ON c.customer_id = o.customer_id
+JOIN order_item oi ON o.order_id = oi.order_id JOIN books_prj2 b ON oi.book_id = b.book_id
+GROUP BY c.customer_id, c.name, oi.order_id HAVING COUNT(DISTINCT b.genre) > 1;
+	
+	--61)Find orders with a total amount less than the average order value.
+
+	select * from order_prj2 where total_amount < (select avg(total_amount) from order_prj2);
+
+	select avg(total_amount) from order_prj2;
+
+--62)Retrieve the oldest order placed by each customer.
+
+select c.name,c.customer_id,min(o.order_date) as oldest_order from customer_prj2 c join order_prj2 o on c.customer_id=o.customer_id 
+group by c.name,c.customer_id;
+
+--63)Display the distribution of book prices within each genre.
+
+select genre,count(genre) as count_books,avg(price) as distribution_book_prices from books_prj2 group by genre;
+
+--64)Calculate the total quantity of each book sold.
+
+select sum(oi.quantity) as total_quantity,b.title from order_item oi join books_prj2 b on b.book_id=oi.book_id 
+group by b.title,oi.quantity;
+
+--65)List all customers who have placed orders for books authored by a specific author.
+
+select c.name ,c.customer_id from 
+
+SELECT c.name,c.customer_id,b.title,b.author FROM order_prj2 o JOIN customer_prj2 c ON o.customer_id = c.customer_id 
+JOIN order_item oi ON o.order_id = oi.order_id
+JOIN Books_prj2 b ON oi.book_id = b.book_id WHERE b.author = 'George orwell';
+
+--66)Find the total number of orders placed in each city.
+
+select count(o.order_id) as total_address,c.address from customer_prj2 c join order_prj2 o on c.customer_id=o.customer_id
+group by c.address having address like '%city%';
+
+--67)Retrieve orders containing books with prices ending in ".99".
+
+select o.customer_id,b.title,b.price,o.order_id from order_prj2 o join order_item oi on o.order_id=oi.order_id 
+join Books_prj2 b on oi.book_id=b.book_id where price like '%.99%';
+
+--68)Identify customers who have placed orders for books published in a specific decade.
+
+SELECT distinct c.customer_id, c.name AS customer_name
+FROM customer_prj2 c JOIN order_prj2 o ON c.customer_id = o.customer_id JOIN order_item oi ON o.order_id = oi.order_id
+JOIN Books_prj2 b ON oi.book_id = b.book_id WHERE  YEAR(b.published_date) BETWEEN 1923 AND 1949;
+
+--69)Calculate the average number of books ordered per order.
+
+select avg(quantity) as average_order from order_item;
+
+--70)Retrieve orders placed by customers who have not provided their phone numbers.
+
+select * from customer_prj2 c join order_prj2 o on c.customer_id=o.customer_id where c.phone=null;
+
